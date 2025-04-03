@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aufgaben Liste</title>
+    <link rel="stylesheet" href="styles/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <style>
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .task-image, .task-solution {
+            max-width: 200px;
+            max-height: 200px;
+            margin-top: 10px;
+        }
+        /* Button styles */
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .task-btn {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: background-color 0.3s ease;
+        }
+        .edit-btn {
+            background-color: #4CAF50; /* Green */
+        }
+        .upload-image-btn {
+            background-color: #2196F3; /* Blue */
+        }
+        .delete-image-btn, .delete-solution-btn {
+            background-color: #f44336; /* Red */
+        }
+        .upload-solution-btn {
+            background-color: #FF9800; /* Orange */
+        }
+        .task-btn:hover {
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Navigation Tabs -->
+        <div class="tabs">
+            <a href="task-list.html" class="tab active"><i class="fas fa-list"></i> Aufgabenliste</a>
+            <a href="add-task.html" class="tab"><i class="fas fa-plus"></i> Aufgabe hinzufügen</a>
+            <a href="#" class="tab"><i class="fas fa-server"></i> Discord Status</a>
+        </div>
+
+        <!-- Task List Section -->
+        <h1>Aufgaben Liste</h1>
+        <div id="taskList" class="task-list"></div>
+
+        <!-- Edit Task Modal -->
+        <div id="editTaskModal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h2>Aufgabe bearbeiten</h2>
+                <form id="editTaskForm">
+                    <input type="hidden" id="editTaskId">
+                    <label for="editSubject">Fach</label>
+                    <input type="text" id="editSubject" name="editSubject" required>
+                    <label for="editTask">Aufgabe</label>
+                    <input type="text" id="editTask" name="editTask" required>
+                    <label for="editDueDate">Fällig bis</label>
+                    <input type="date" id="editDueDate" name="editDueDate" required>
+                    <label for="editNotes">Zusätzliche Informationen (optional)</label>
+                    <textarea id="editNotes" name="editNotes"></textarea>
+                    <button type="submit" class="btn">Speichern</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const taskList = document.getElementById('taskList');
+            const editTaskModal = document.getElementById('editTaskModal');
+            const editTaskForm = document.getElementById('editTaskForm');
+            const closeBtn = document.querySelector('.close');
+
+            // Retrieve tasks from localStorage
+            let tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+            // Retrieve the next available ID from localStorage
+            let nextTaskId = parseInt(localStorage.getItem('nextTaskId')) || 1;
+
+            function displayTasks() {
+                taskList.innerHTML = ''; // Clear existing tasks
+                if (tasks.length === 0) {
+                    taskList.innerHTML = '<p>Keine Aufgaben verfügbar.</p>';
+                } else {
+                    tasks.forEach((task) => {
+                        const taskDiv = document.createElement('div');
+                        taskDiv.classList.add('note');
+                        taskDiv.innerHTML = `
+                            <p><strong>ID:</strong> ${task.id}</p>
+                            <p><strong>Fach:</strong> ${task.subject}</p>
+                            <p><strong>Aufgabe:</strong> ${task.task}</p>
+                            <p><strong>Fällig bis:</strong> ${task.dueDate}</p>
+                            <p><strong>Zusätzliche Informationen:</strong> ${task.notes || 'Keine'}</p>
+                            <img src="${task.image || ''}" alt="Aufgabenbild" class="task-image" style="${task.image ? '' : 'display: none;'}">
+                            <a href="${task.solution || '#'}" target="_blank" class="task-solution-link" style="${task.solution ? '' : 'display: none;'}">Lösung anzeigen</a>
+                            <input type="file" id="imageUpload-${task.id}" style="display: none;">
+                            <input type="file" id="solutionUpload-${task.id}" style="display: none;">
+                            <div class="button-group">
+                                <button class="task-btn edit-btn" data-id="${task.id}"><i class="fas fa-edit"></i> Bearbeiten</button>
+                                <button class="task-btn upload-image-btn" data-id="${task.id}"><i class="fas fa-image"></i> Bild hochladen</button>
+                                <button class="task-btn delete-image-btn" data-id="${task.id}" style="${task.image ? '' : 'display: none;'}"><i class="fas fa-trash"></i> Bild löschen</button>
+                                <button class="task-btn upload-solution-btn" data-id="${task.id}"><i class="fas fa-file-upload"></i> Lösung hochladen</button>
+                                <button class="task-btn delete-solution-btn" data-id="${task.id}" style="${task.solution ? '' : 'display: none;'}"><i class="fas fa-trash"></i> Lösung löschen</button>
+                            </div>
+                        `;
+                        taskList.appendChild(taskDiv);
+
+                        // Event listeners for buttons
+                        const editBtn = taskDiv.querySelector('.edit-btn');
+                        const uploadImageBtn = taskDiv.querySelector('.upload-image-btn');
+                        const deleteImageBtn = taskDiv.querySelector('.delete-image-btn');
+                        const uploadSolutionBtn = taskDiv.querySelector('.upload-solution-btn');
+                        const deleteSolutionBtn = taskDiv.querySelector('.delete-solution-btn');
+                        const imageUpload = taskDiv.querySelector(`#imageUpload-${task.id}`);
+                        const solutionUpload = taskDiv.querySelector(`#solutionUpload-${task.id}`);
+
+                        editBtn.addEventListener('click', () => openEditModal(task.id));
+                        uploadImageBtn.addEventListener('click', () => imageUpload.click());
+                        deleteImageBtn.addEventListener('click', () => deleteImage(task.id));
+                        uploadSolutionBtn.addEventListener('click', () => solutionUpload.click());
+                        deleteSolutionBtn.addEventListener('click', () => deleteSolution(task.id));
+                        imageUpload.addEventListener('change', (event) => uploadImage(event, task.id));
+                        solutionUpload.addEventListener('change', (event) => uploadSolution(event, task.id));
+                    });
+                }
+            }
+
+            // Function to open the edit modal
+            function openEditModal(taskId) {
+                const taskIndex = tasks.findIndex(task => task.id === taskId);
+                const task = tasks[taskIndex];
+                document.getElementById('editTaskId').value = taskIndex;
+                document.getElementById('editSubject').value = task.subject;
+                document.getElementById('editTask').value = task.task;
+                document.getElementById('editDueDate').value = task.dueDate;
+                document.getElementById('editNotes').value = task.notes;
+                editTaskModal.style.display = "block";
+            }
+
+            // Function to upload an image
+            function uploadImage(event, taskId) {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const taskIndex = tasks.findIndex(task => task.id === taskId);
+                        tasks[taskIndex].image = e.target.result;
+                        localStorage.setItem('tasks', JSON.stringify(tasks));
+                        displayTasks();
+                    };
+                    reader.readAsDataURL(file);
+                }
+            }
+
+            // Function to delete an image
+            function deleteImage(taskId) {
+                const taskIndex = tasks.findIndex(task => task.id === taskId);
+                tasks[taskIndex].image = null;
+                localStorage.setItem('tasks', JSON.stringify(tasks));
+                displayTasks();
+            }
+
+            // Function to upload a solution
+            function uploadSolution(event, taskId) {
+                const file = event.target.files[0];
+                if (file) {
+                    const taskIndex = tasks.findIndex(task => task.id === taskId);
+                    tasks[taskIndex].solution = URL.createObjectURL(file);
+                    localStorage.setItem('tasks', JSON.stringify(tasks));
+                    displayTasks();
+                }
+            }
+
+            // Function to delete a solution
+            function deleteSolution(taskId) {
+                const taskIndex = tasks.findIndex(task => task.id === taskId);
+                tasks[taskIndex].solution = null;
+                localStorage.setItem('tasks', JSON.stringify(tasks));
+                displayTasks();
+            }
+
+            // Event listener for the edit task form
+            editTaskForm.addEventListener('submit', (event) => {
+                event.preventDefault();
+                const taskIndex = document.getElementById('editTaskId').value;
+                tasks[taskIndex].subject = document.getElementById('editSubject').value;
+                tasks[taskIndex].task = document.getElementById('editTask').value;
+                tasks[taskIndex].dueDate = document.getElementById('editDueDate').value;
+                tasks[taskIndex].notes = document.getElementById('editNotes').value;
+                localStorage.setItem('tasks', JSON.stringify(tasks));
+                editTaskModal.style.display = "none";
+                displayTasks();
+            });
+
+            // Event listener to close the modal
+            closeBtn.addEventListener('click', () => {
+                editTaskModal.style.display = "none";
+            });
+
+            // Close the modal if the user clicks outside of it
+            window.addEventListener('click', (event) => {
+                if (event.target == editTaskModal) {
+                    editTaskModal.style.display = "none";
+                }
+            });
+
+            displayTasks();
+        });
+    </script>
+</body>
+</html>
